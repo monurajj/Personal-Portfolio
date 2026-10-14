@@ -1,7 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
-import { sendContactMessage } from "@/lib/mail";
+import { sendContactMessage, sendThankYou } from "@/lib/mail";
 import { saveMessage } from "@/lib/messages";
 
 export type ContactState = {
@@ -74,6 +74,12 @@ export async function sendContact(_prev: ContactState, formData: FormData): Prom
   if (mailed.status === "rejected") console.error("[contact] email failed:", mailed.reason);
 
   if (saved.status === "fulfilled" || mailed.status === "fulfilled") {
+    // Courtesy auto-reply to the visitor. Best effort: a failure here is logged, never shown.
+    try {
+      await sendThankYou({ name, email, message });
+    } catch (err) {
+      console.error("[contact] thank-you email failed:", err);
+    }
     return { status: "success", message: "Thanks — your message is on its way. I reply within a day or two." };
   }
   return {
