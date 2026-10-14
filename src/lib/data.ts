@@ -16,7 +16,10 @@ export const site = {
   email: "monu@codemasti.com",
   location: "Aurangabad, Bihar, India",
   timezone: "Asia/Kolkata",
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://monuraj.dev",
+  /** The public address of the site, used wherever a link must work outside the current deployment (emails). */
+  domain: "https://monu.codemasti.com",
+  /** Address of the running deployment (metadata, sitemap); falls back to the public domain. */
+  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://monu.codemasti.com",
   portrait: "/myimage.png",
   links: {
     linkedin: "https://www.linkedin.com/in/monurajj/",

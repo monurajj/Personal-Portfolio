@@ -102,7 +102,7 @@ export async function sendThankYou({ name, email, message }: Omit<ContactPayload
     "—",
     site.name,
     site.role,
-    site.url,
+    site.domain,
   ].join("\n");
   const html = `
     <div style="font-family:Inter,Arial,sans-serif;max-width:640px;color:#111">
@@ -114,7 +114,7 @@ export async function sendThankYou({ name, email, message }: Omit<ContactPayload
       <p style="margin:0 0 6px;font-size:12px;color:#777">What you sent</p>
       <pre style="white-space:pre-wrap;font:14px/1.6 Inter,Arial,sans-serif;background:#f4f6fa;padding:16px;border-radius:12px;margin:0 0 20px">${escapeHtml(message)}</pre>
       <p style="margin:0;font-size:13px;color:#777">
-        — ${escapeHtml(site.name)} · <a href="${escapeHtml(site.url)}" style="color:#3b55e6">${escapeHtml(site.url.replace(/^https?:\/\//, ""))}</a>
+        — ${escapeHtml(site.name)} · <a href="${escapeHtml(site.domain)}" style="color:#3b55e6">${escapeHtml(site.domain.replace(/^https?:\/\//, ""))}</a>
       </p>
     </div>`;
 
