@@ -1,5 +1,6 @@
 import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
+import { site } from "./data";
 
 type Env = {
   host: string;
@@ -75,6 +76,52 @@ export async function sendContactMessage({ name, email, message, meta }: Contact
     from: env.from,
     to: env.to,
     replyTo: `${name} <${email}>`,
+    subject,
+    text,
+    html,
+  });
+}
+
+/**
+ * Auto-reply to the visitor: a short thank-you with a copy of what they wrote.
+ * Replies to it land in MAIL_TO, so the conversation continues in the inbox.
+ */
+export async function sendThankYou({ name, email, message }: Omit<ContactPayload, "meta">) {
+  const env = readEnv();
+  const first = name.trim().split(/\s+/)[0] || name;
+  const subject = `Thanks for your message, ${first}`;
+  const text = [
+    `Hi ${first},`,
+    "",
+    `Thanks for getting in touch through my portfolio. I've received your message and will reply within a day or two.`,
+    "",
+    "Here's what you sent, for your records:",
+    "",
+    message,
+    "",
+    "—",
+    site.name,
+    site.role,
+    site.url,
+  ].join("\n");
+  const html = `
+    <div style="font-family:Inter,Arial,sans-serif;max-width:640px;color:#111">
+      <p style="margin:0 0 8px;font-size:13px;color:#777">${escapeHtml(site.name)} · ${escapeHtml(site.role)}</p>
+      <h2 style="margin:0 0 12px;font-size:20px">Thanks, ${escapeHtml(first)}.</h2>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6">
+        I've received your message and will reply within a day or two. If it's urgent, just reply to this email.
+      </p>
+      <p style="margin:0 0 6px;font-size:12px;color:#777">What you sent</p>
+      <pre style="white-space:pre-wrap;font:14px/1.6 Inter,Arial,sans-serif;background:#f4f6fa;padding:16px;border-radius:12px;margin:0 0 20px">${escapeHtml(message)}</pre>
+      <p style="margin:0;font-size:13px;color:#777">
+        — ${escapeHtml(site.name)} · <a href="${escapeHtml(site.url)}" style="color:#3b55e6">${escapeHtml(site.url.replace(/^https?:\/\//, ""))}</a>
+      </p>
+    </div>`;
+
+  await getTransporter().sendMail({
+    from: env.from,
+    to: `${name} <${email}>`,
+    replyTo: env.to,
     subject,
     text,
     html,
