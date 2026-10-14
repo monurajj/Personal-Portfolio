@@ -7,7 +7,7 @@ import { Reveal } from "@/components/ui/Reveal";
 
 export function BeyondTech() {
   return (
-    <section id="beyond" className="relative py-28 sm:py-40">
+    <section id="beyond" className="relative py-20 sm:py-40">
       <div className="container-x">
         <SectionHeading
           index="05"

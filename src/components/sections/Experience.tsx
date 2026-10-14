@@ -14,7 +14,7 @@ export function Experience() {
   const [open, setOpen] = useState<number | null>(0);
 
   return (
-    <section id="experience" className="relative py-28 sm:py-40">
+    <section id="experience" className="relative py-20 sm:py-40">
       <div className="container-x">
         <SectionHeading
           index="02"

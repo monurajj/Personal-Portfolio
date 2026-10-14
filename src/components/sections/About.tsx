@@ -7,7 +7,7 @@ import { Marquee } from "@/components/ui/Marquee";
 
 export function About() {
   return (
-    <section id="about" className="relative py-28 sm:py-40">
+    <section id="about" className="relative py-20 sm:py-40">
       <div className="container-x">
         <SectionHeading index="01" eyebrow="About" title={about.title} />
 
@@ -67,7 +67,7 @@ export function About() {
         </div>
       </div>
 
-      <div className="mt-28 rule py-8">
+      <div className="mt-16 rule py-8 sm:mt-28">
         <Marquee items={about.marquee} />
       </div>
     </section>

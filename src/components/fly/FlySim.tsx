@@ -410,35 +410,38 @@ export function FlySim() {
       </div>
 
       {/* HUD */}
-      <div className="pointer-events-none absolute inset-0 flex flex-col justify-between px-5 pb-6 pt-24 sm:px-10 sm:pb-8">
-        <div className="flex items-start justify-between gap-6">
-          <div>
+      <div className="pointer-events-none absolute inset-0 flex flex-col justify-between px-4 pb-5 pt-20 sm:px-10 sm:pb-8 sm:pt-24">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+          <div className="order-2 sm:order-none">
             <p className="eyebrow">Drone simulator · Level {level}</p>
-            <h1 className="mt-2 font-display text-[clamp(1.6rem,3.2vw,2.6rem)] font-medium leading-[1] tracking-tight text-ink">
-              Fly through all {hud.gates} gates.
-            </h1>
-            <button
-              type="button"
-              onClick={() => openHelp()}
-              aria-haspopup="dialog"
-              aria-expanded={help}
-              className="pointer-events-auto mt-3 inline-flex items-center gap-2 rounded-full border border-line-strong bg-bg/75 px-3.5 py-1.5 text-xs text-ink backdrop-blur-md transition-colors hover:border-ink"
-            >
-              <Keyboard className="size-4" strokeWidth={1.75} />
-              How to fly
-              <kbd className="rounded border border-line px-1 font-mono text-[10px] text-muted">?</kbd>
-            </button>
+            <div className="mt-1.5 flex items-center gap-3 sm:mt-2 sm:block">
+              <h1 className="font-display text-xl font-medium leading-[1] tracking-tight text-ink sm:text-[clamp(1.6rem,3.2vw,2.6rem)]">
+                Fly through all {hud.gates} gates.
+              </h1>
+              <button
+                type="button"
+                onClick={() => openHelp()}
+                aria-haspopup="dialog"
+                aria-expanded={help}
+                aria-label="How to fly"
+                className="pointer-events-auto inline-flex shrink-0 items-center gap-2 rounded-full border border-line-strong bg-bg/75 text-xs text-ink backdrop-blur-md transition-colors hover:border-ink max-sm:size-10 max-sm:justify-center sm:mt-3 sm:px-3.5 sm:py-1.5"
+              >
+                <Keyboard className="size-4" strokeWidth={1.75} />
+                <span className="hidden sm:inline">How to fly</span>
+                <kbd className="hidden rounded border border-line px-1 font-mono text-[10px] text-muted sm:inline">?</kbd>
+              </button>
+            </div>
             {pilot && (
-              <p className="pointer-events-auto mt-3 font-mono text-[11px] uppercase tracking-[0.14em] text-muted">
+              <p className="pointer-events-auto mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted sm:mt-3">
                 Pilot <span className="text-ink">{display(pilot)}</span>
                 <span aria-hidden> · </span>
-                <button type="button" onClick={startEditing} className="underline underline-offset-4 transition-colors hover:text-ink">
+                <button type="button" onClick={startEditing} className="-my-2.5 py-2.5 underline underline-offset-4 transition-colors hover:text-ink">
                   change
                 </button>
                 {(level > 1 || carry > 0) && (
                   <>
                     <span aria-hidden> · </span>
-                    <button type="button" onClick={startOver} className="underline underline-offset-4 transition-colors hover:text-ink">
+                    <button type="button" onClick={startOver} className="-my-2.5 py-2.5 underline underline-offset-4 transition-colors hover:text-ink">
                       start over
                     </button>
                   </>
@@ -447,12 +450,13 @@ export function FlySim() {
             )}
           </div>
 
-          <dl className="grid shrink-0 grid-cols-3 gap-x-5 gap-y-3 rounded-2xl border border-line bg-bg/75 px-4 py-3 font-mono text-[11px] uppercase tracking-[0.14em] text-muted backdrop-blur-md sm:grid-cols-6">
+          {/* Phones: a full-width strip of the four numbers that matter mid-flight (level is in the eyebrow). */}
+          <dl className="order-1 grid shrink-0 grid-cols-4 gap-x-3 gap-y-3 rounded-2xl border border-line bg-bg/75 px-3.5 py-2.5 font-mono text-[11px] uppercase tracking-[0.14em] text-muted backdrop-blur-md sm:order-none sm:grid-cols-6 sm:gap-x-5 sm:px-4 sm:py-3">
             <Stat label="Score" value={pts(total)} accent={hud.flash} strong />
-            <Stat label="Level" value={String(level)} />
+            <Stat label="Level" value={String(level)} className="max-sm:hidden" />
             <Stat label="Gates" value={`${gate}/${hud.gates}`} />
             <Stat label="Time" value={fmt(hud.time)} accent={hud.flash} note={hud.flash ? `+${HIT_PENALTY}s` : undefined} />
-            <Stat label="Height" value={`${hud.alt.toFixed(1)} m`} />
+            <Stat label="Height" value={`${hud.alt.toFixed(1)} m`} className="max-sm:hidden" />
             <Stat label="Hits" value={String(hud.hits)} accent={hud.flash} />
 
             {/* Live leaderboard: top 5 pilots, and where your current total would land */}
@@ -509,7 +513,7 @@ export function FlySim() {
         </div>
 
         {/* Pads */}
-        <div className="flex items-end justify-between gap-4">
+        <div className="flex items-end justify-between gap-2 sm:gap-4">
           <Pad label="Height · turn">
             <PadButton on={pressed.has("yawL")} press={(d) => set("yawL", d)} title="Turn left (A)">
               <RotateCcw className="size-5" strokeWidth={1.75} />
@@ -531,13 +535,14 @@ export function FlySim() {
             <button
               type="button"
               onClick={reset}
-              className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-line-strong bg-bg/75 px-4 py-2 text-xs text-ink backdrop-blur-md transition-colors hover:border-ink"
+              aria-label="Replay level"
+              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full border border-line-strong bg-bg/75 text-xs text-ink backdrop-blur-md transition-colors hover:border-ink max-sm:size-11 sm:px-4 sm:py-2"
             >
-              <RefreshCw className="size-3.5" strokeWidth={1.75} />
-              Replay level<span className="hidden sm:inline"> (R)</span>
+              <RefreshCw className="size-4 sm:size-3.5" strokeWidth={1.75} />
+              <span className="hidden sm:inline">Replay level (R)</span>
             </button>
             {top && (
-              <p className="text-center font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
+              <p className="hidden text-center font-mono text-[10px] uppercase tracking-[0.14em] text-muted sm:block">
                 High score {pts(top.score)} · {display(top.pilot)}
               </p>
             )}
@@ -805,15 +810,17 @@ function Stat({
   accent = false,
   strong = false,
   note,
+  className,
 }: {
   label: string;
   value: string;
   accent?: boolean;
   strong?: boolean;
   note?: string;
+  className?: string;
 }) {
   return (
-    <div>
+    <div className={cn("min-w-0", className)}>
       <dt className="text-[10px] text-dim">{label}</dt>
       <dd
         className={cn(
@@ -832,7 +839,7 @@ function Stat({
 function Pad({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="pointer-events-auto flex flex-col items-center gap-2">
-      <div className="grid grid-cols-3 gap-1.5">{children}</div>
+      <div className="grid grid-cols-3 gap-1 sm:gap-1.5">{children}</div>
       <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-dim">{label}</span>
     </div>
   );
@@ -865,7 +872,7 @@ function PadButton({
       onLostPointerCapture={() => press(false)}
       onContextMenu={(e) => e.preventDefault()}
       className={cn(
-        "grid size-12 place-items-center rounded-full border backdrop-blur-md transition-colors duration-150 sm:size-13",
+        "grid size-11 touch-none select-none place-items-center rounded-full border backdrop-blur-md transition-colors duration-150 sm:size-13",
         on ? "border-ink bg-ink text-bg" : "border-line-strong bg-bg/75 text-ink hover:border-ink",
       )}
     >

@@ -67,13 +67,16 @@ function FlyLink({ active, className, onClick }: { active: boolean; className?: 
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "group inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm transition-colors duration-300",
+        "group inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-3.5 py-2 text-sm transition-colors duration-300 sm:py-1.5",
         active ? "border-ink bg-ink text-bg" : "border-line-strong text-ink hover:border-ink",
         className,
       )}
     >
       <Prop className="size-4" />
-      <span>Fly this drone</span>
+      {/* Short on narrow phones so the header never wraps. */}
+      <span>
+        Fly<span className="max-[399px]:hidden"> this drone</span>
+      </span>
     </Link>
   );
 }
@@ -158,7 +161,7 @@ export function Navbar() {
       >
         <nav aria-label="Primary" className="container-x flex items-center justify-between py-4 sm:py-5">
           <div className="flex items-center gap-10">
-            <Link href={hrefFor("#home")} onClick={(e) => go(e, "#home")} aria-label={`${site.name} — home`} className="text-ink">
+            <Link href={hrefFor("#home")} onClick={(e) => go(e, "#home")} aria-label={`${site.name} — home`} className="-m-2 p-2 text-ink">
               <Mark />
             </Link>
             <ul className="hidden items-center gap-1 md:flex">
@@ -212,7 +215,7 @@ export function Navbar() {
             </ul>
           </div>
 
-          <div className="flex items-center gap-4 sm:gap-6">
+          <div className="flex items-center gap-3 min-[400px]:gap-4 sm:gap-6">
             {/* Current section, for phones where the link list is hidden */}
             <AnimatePresence mode="wait" initial={false}>
               <motion.span
@@ -221,12 +224,12 @@ export function Navbar() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.3 }}
-                className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted md:hidden"
+                className="hidden max-w-[7.5rem] truncate font-mono text-[11px] uppercase tracking-[0.16em] text-muted min-[440px]:block md:hidden"
               >
                 {nav.find((n) => n.href.slice(1) === active)?.label ?? ""}
               </motion.span>
             </AnimatePresence>
-            <FlyLink active={onFly} className="hidden sm:inline-flex" onClick={() => setOpen(false)} />
+            <FlyLink active={onFly} onClick={() => setOpen(false)} />
             <Link
               href={hrefFor("#contact")}
               onClick={(e) => go(e, "#contact")}
@@ -244,7 +247,7 @@ export function Navbar() {
               onClick={() => setOpen((v) => !v)}
               aria-expanded={open}
               aria-controls="mobile-menu"
-              className="text-sm text-ink underline underline-offset-[5px] md:hidden"
+              className="-my-3 -mr-3 px-3 py-3 text-sm text-ink underline underline-offset-[5px] md:hidden"
             >
               {open ? "Close" : "Menu"}
             </button>
@@ -258,7 +261,7 @@ export function Navbar() {
             id="mobile-menu"
             role="dialog"
             aria-modal="true"
-            className="fixed inset-0 z-[72] flex flex-col justify-between bg-bg px-5 pb-10 pt-28 md:hidden"
+            className="fixed inset-0 z-[72] flex flex-col justify-between gap-8 overflow-y-auto overscroll-contain bg-bg px-5 pb-10 pt-24 md:hidden"
             initial={{ clipPath: "inset(0 0 100% 0)" }}
             animate={{ clipPath: "inset(0 0 0% 0)" }}
             exit={{ clipPath: "inset(0 0 100% 0)" }}
@@ -279,7 +282,7 @@ export function Navbar() {
                     onClick={(e) => go(e, item.href)}
                     aria-current={active === item.href.slice(1) ? "location" : undefined}
                     className={cn(
-                      "flex items-baseline justify-between py-4 font-display text-3xl font-medium tracking-tight",
+                      "flex items-baseline justify-between py-4 font-display text-3xl font-medium tracking-tight [@media(max-height:720px)]:py-2.5 [@media(max-height:720px)]:text-2xl",
                       active === item.href.slice(1) ? "text-ink" : "text-muted",
                     )}
                   >
@@ -303,7 +306,7 @@ export function Navbar() {
                   onClick={() => setOpen(false)}
                   aria-current={onGallery ? "page" : undefined}
                   className={cn(
-                    "flex items-baseline justify-between py-4 font-display text-3xl font-medium tracking-tight",
+                    "flex items-baseline justify-between py-4 font-display text-3xl font-medium tracking-tight [@media(max-height:720px)]:py-2.5 [@media(max-height:720px)]:text-2xl",
                     onGallery ? "text-ink" : "text-muted",
                   )}
                 >

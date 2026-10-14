@@ -46,7 +46,7 @@ export function Footer() {
 
           <div className="md:col-span-3">
             <p className="eyebrow">Index</p>
-            <ul className="mt-4 space-y-2">
+            <ul className="mt-4 space-y-4 sm:space-y-2">
               {nav.map((n, i) => (
                 <li key={n.href}>
                   <a
@@ -63,7 +63,7 @@ export function Footer() {
 
           <div className="md:col-span-2">
             <p className="eyebrow">Elsewhere</p>
-            <ul className="mt-4 space-y-2">
+            <ul className="mt-4 space-y-4 sm:space-y-2">
               {socials.map((s) => (
                 <li key={s.label}>
                   <a
