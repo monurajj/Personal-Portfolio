@@ -28,7 +28,7 @@ export function Contact() {
   ];
 
   return (
-    <section id="contact" className="relative py-28 sm:py-40">
+    <section id="contact" className="relative py-20 sm:py-40">
       <div className="container-x">
         <Reveal className="rule flex items-baseline gap-4 pt-6">
           <span className="font-mono text-xs text-ink">06</span>
@@ -60,7 +60,7 @@ export function Contact() {
                   type="button"
                   onClick={copy}
                   aria-live="polite"
-                  className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted transition-colors hover:text-ink"
+                  className="-my-3 -mx-2 px-2 py-3 font-mono text-[11px] uppercase tracking-[0.16em] text-muted transition-colors hover:text-ink"
                 >
                   <AnimatePresence mode="wait" initial={false}>
                     <motion.span

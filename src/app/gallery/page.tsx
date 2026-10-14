@@ -41,7 +41,7 @@ export default function GalleryPage() {
           />
           <Reveal delay={0.2} className="mt-6 flex flex-wrap items-center gap-x-8 gap-y-3">
             <p className="max-w-md text-base leading-relaxed text-muted">
-              Builds, flights, classrooms and the odd stage. Hover to bring a frame to life, click to open it.
+              Builds, flights, classrooms and the odd stage. Open any frame to see it full size.
             </p>
             <Link href="/" className="link-draw inline-flex items-center gap-1.5 text-sm text-ink">
               <ArrowLeft className="size-4" strokeWidth={1.5} />

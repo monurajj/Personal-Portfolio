@@ -157,7 +157,7 @@ export function Hero() {
         <motion.a
           {...show(1.1)}
           href="#about"
-          className="inline-flex items-center gap-1.5 self-start text-[15px] text-ink"
+          className="-my-2.5 inline-flex items-center gap-1.5 self-start py-2.5 text-[15px] text-ink"
         >
           Scroll down
           <ArrowDown className="size-4" strokeWidth={1.5} />

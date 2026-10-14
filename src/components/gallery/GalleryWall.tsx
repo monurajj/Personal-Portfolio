@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 /**
  * A drifting collage rather than a grid: items flow down three columns (two on
  * phones) that scroll at slightly different speeds, with alternating widths and
- * vertical offsets so no two neighbours line up. Frames sit in grayscale until
+ * vertical offsets so no two neighbours line up. On hover-capable screens frames sit in grayscale until
  * hovered, and open in a lightbox.
  */
 
@@ -125,7 +125,7 @@ function Frame({ item, index, slot, onOpen }: { item: GalleryItem; index: number
             playsInline
             autoPlay
             preload="metadata"
-            className="absolute inset-0 h-full w-full object-cover grayscale transition-[filter,transform] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.03] group-hover:grayscale-0"
+            className="absolute inset-0 h-full w-full object-cover transition-[filter,transform] [@media(hover:hover)]:grayscale duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.03] group-hover:grayscale-0"
           />
         ) : (
           <Image
@@ -134,7 +134,7 @@ function Frame({ item, index, slot, onOpen }: { item: GalleryItem; index: number
             fill
             sizes={ratio > 1.3 ? "(min-width: 1024px) 32vw, 50vw" : "(min-width: 1024px) 28vw, 46vw"}
             priority={index < 3}
-            className="object-cover grayscale transition-[filter,transform] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.03] group-hover:grayscale-0"
+            className="object-cover transition-[filter,transform] [@media(hover:hover)]:grayscale duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.03] group-hover:grayscale-0"
           />
         )}
         {/* soft frame + index */}

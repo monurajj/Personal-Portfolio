@@ -7,7 +7,7 @@ import { Marquee } from "@/components/ui/Marquee";
 
 export function Skills() {
   return (
-    <section id="skills" className="relative py-28 sm:py-40">
+    <section id="skills" className="relative py-20 sm:py-40">
       <div className="container-x">
         <SectionHeading
           index="04"
@@ -43,7 +43,7 @@ export function Skills() {
         </Reveal>
       </div>
 
-      <div className="mt-24 space-y-6 rule py-8">
+      <div className="mt-14 space-y-6 rule py-8 sm:mt-24">
         <Marquee items={techMarquee} alternate={false} />
         <Marquee items={[...techMarquee].reverse()} reverse alternate />
       </div>

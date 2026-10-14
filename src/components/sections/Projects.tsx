@@ -29,7 +29,7 @@ export function Projects() {
   };
 
   return (
-    <section id="projects" className="relative py-28 sm:py-40">
+    <section id="projects" className="relative py-20 sm:py-40">
       <div className="container-x">
         <SectionHeading
           index="03"
