@@ -7,10 +7,37 @@ import { motion } from "motion/react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ChevronDown, ChevronUp, Keyboard, RotateCcw, RotateCw, RefreshCw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ScoreRecord } from "@/lib/scores";
+import { containsProfanity } from "@/lib/profanity";
+import { Dice } from "./Dice";
+import { collectDevice, type DeviceInfo } from "@/lib/device";
+import { claimsToBeMonusFamily, MONU_FAN_NAMES } from "@/lib/monu";
+import { ATC_LINES, ATC_VERDICTS, funnyCallsign, pick } from "@/lib/callsigns";
+import { LeaderboardCard } from "./LeaderboardCard";
 import { GATE_COUNT, GATE_POINTS, HIT_PENALTY, HIT_POINTS, simInput, simState } from "./sim";
-import { fetchTopScores, submitScore } from "@/app/actions/score";
+import { checkPilotName, fetchTopScores, submitScore } from "@/app/actions/score";
 
 const PILOT_KEY = "fly_pilot";
+const TOKEN_KEY = "fly_token";
+let memoryToken = "";
+
+/** Tells the scene to restart (kept outside the component: it mutates shared sim state). */
+function resetSim() {
+  simInput.reset += 1;
+}
+
+/** A random id kept in this browser; it is how the server knows which name is yours. */
+function getToken() {
+  try {
+    let t = window.localStorage.getItem(TOKEN_KEY);
+    if (!t) {
+      t = crypto.randomUUID();
+      window.localStorage.setItem(TOKEN_KEY, t);
+    }
+    return t;
+  } catch {
+    return (memoryToken ||= crypto.randomUUID());
+  }
+}
 const PROGRESS_KEY = "fly_progress";
 const BOARD_KEY = "fly_board_open";
 const PILOT_MIN = 2;
@@ -96,6 +123,15 @@ export function FlySim() {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [draftError, setDraftError] = useState<string | null>(null);
+  /** The playful "are you sure?" flow shown when the typed name is refused. */
+  const [roast, setRoast] = useState<{
+    name: string;
+    stage: "ask" | "checking" | "denied" | "monu";
+    line: string;
+    verdict: string;
+    callsign: string;
+    tries: number;
+  } | null>(null);
 
   // Levels: the level being flown and the points banked from the levels before it.
   const [level, setLevel] = useState(1);
@@ -143,6 +179,16 @@ export function FlySim() {
     runRef.current = { level, carry };
   }, [level, carry]);
 
+  // What the browser says about this device, saved with the score for the site owner.
+  const deviceRef = useRef<DeviceInfo | null>(null);
+  useEffect(() => {
+    collectDevice()
+      .then((d) => {
+        deviceRef.current = d;
+      })
+      .catch(() => {});
+  }, []);
+
   const refreshBoard = useCallback(() => fetchTopScores(5).then(setBoard).catch(() => {}), []);
 
   // Remembered pilot + their progress + the leaderboard, loaded after mount.
@@ -151,6 +197,11 @@ export function FlySim() {
       let saved = "";
       try {
         saved = window.localStorage.getItem(PILOT_KEY) ?? "";
+        // A name saved before the filter existed must be chosen again.
+        if (containsProfanity(saved)) {
+          window.localStorage.removeItem(PILOT_KEY);
+          saved = "";
+        }
         if (window.localStorage.getItem(BOARD_KEY) === "0") setBoardOpen(false);
       } catch {}
       setPilot(saved);
@@ -159,6 +210,18 @@ export function FlySim() {
         setLevel(p.level);
         setCarry(p.carry);
         openHelp(true);
+        // Re-check against the admin's current word list; a name blocked since is asked for again.
+        void checkPilotName(saved, getToken())
+          .then((v) => {
+            if (v.ok) return;
+            try {
+              window.localStorage.removeItem(PILOT_KEY);
+            } catch {}
+            setPilot("");
+            setDraft("");
+            setDraftError(v.error);
+          })
+          .catch(() => {});
       }
       void refreshBoard();
     }, 0);
@@ -182,6 +245,8 @@ export function FlySim() {
         gates: simState.gates,
         score: total,
         level: lvl,
+        device: deviceRef.current,
+        token: getToken(),
       }).then((r) => {
         setSent(r.ok ? "done" : "error");
         void refreshBoard();
@@ -196,11 +261,100 @@ export function FlySim() {
     setEditing(true);
   };
 
-  const confirmPilot = (e: FormEvent) => {
+  const [checking, setChecking] = useState(false);
+  const confirmPilot = async (e: FormEvent) => {
     e.preventDefault();
     const name = draft.trim().replace(/\s+/g, " ");
-    if (name.length < PILOT_MIN) return setDraftError("At least 2 characters, please.");
-    if (name.length > PILOT_MAX) return setDraftError(`Keep it under ${PILOT_MAX} characters.`);
+    if (name.length < PILOT_MIN) return setDraftError("✍️ At least 2 characters, please.");
+    if (name.length > PILOT_MAX) return setDraftError(`✂️ Keep it under ${PILOT_MAX} characters.`);
+    if (claimsToBeMonusFamily(name)) {
+      setDraftError(null);
+      return setRoast({ name, stage: "monu", line: "", verdict: "", callsign: "", tries: 0 });
+    }
+    await verifyAndAccept(name);
+  };
+
+  /**
+   * Server check (word list, and "is the name free?"), then accept. Returns the outcome so
+   * suggested names can react: a taken callsign just rolls again.
+   */
+  const verifyAndAccept = async (name: string, suggested = false): Promise<"ok" | "taken" | "refused"> => {
+    setChecking(true);
+    const verdict = await checkPilotName(name, getToken(), pilot ?? undefined).catch(() => null);
+    setChecking(false);
+    if (verdict && !verdict.ok && verdict.taken) {
+      setRoast(null);
+      setDraft(name);
+      setDraftError(verdict.error);
+      return "taken";
+    }
+    // Server unreachable: fall back to the built-in list so play isn't blocked.
+    if (verdict ? !verdict.ok : containsProfanity(name)) {
+      if (suggested) {
+        setRoast(null);
+        setDraft(name);
+        setDraftError("🙅 Please choose a different name.");
+      } else askAreYouSure(name);
+      return "refused";
+    }
+    setRoast(null);
+    setDraft(name);
+    accept(name);
+    return "ok";
+  };
+
+  /** Rejected name: ask "are you sure?" instead of just showing an error. */
+  const askAreYouSure = (name: string) => {
+    setDraftError(null);
+    setRoast({ name, stage: "ask", line: "", verdict: "", callsign: funnyCallsign(), tries: 0 });
+  };
+
+  /** "Yes, I'm sure": fake suspense, then the leaderboard says no and hands over a callsign. */
+  const sureClicked = () => {
+    setRoast((r) => (r ? { ...r, stage: "checking", line: ATC_LINES[0] } : r));
+    ATC_LINES.slice(1, 4).forEach((line, i) => {
+      window.setTimeout(() => setRoast((r) => (r && r.stage === "checking" ? { ...r, line } : r)), (i + 1) * 650);
+    });
+    window.setTimeout(
+      () => setRoast((r) => (r && r.stage === "checking" ? { ...r, stage: "denied", verdict: pick(ATC_VERDICTS) } : r)),
+      2800,
+    );
+  };
+
+  /** The dice roll: faces and names flicker for a moment, then it lands on a fresh callsign. */
+  const [dice, setDice] = useState({ rolling: false, face: 5, name: "" });
+  const rollTimers = useRef<number[]>([]);
+  useEffect(() => () => rollTimers.current.forEach((t) => {
+        window.clearTimeout(t);
+        window.clearInterval(t);
+      }), []);
+
+  const rerollCallsign = () => {
+    if (dice.rolling || !roast) return;
+    const final = funnyCallsign(roast.callsign);
+    setDice({ rolling: true, face: 1 + Math.floor(Math.random() * 6), name: funnyCallsign() });
+    const spin = window.setInterval(
+      () => setDice({ rolling: true, face: 1 + Math.floor(Math.random() * 6), name: funnyCallsign() }),
+      85,
+    );
+    const stop = window.setTimeout(() => {
+      window.clearInterval(spin);
+      setDice({ rolling: false, face: 1 + Math.floor(Math.random() * 6), name: "" });
+      setRoast((r) => (r ? { ...r, callsign: final, tries: r.tries + 1 } : r));
+    }, 1100);
+    rollTimers.current.push(spin, stop);
+  };
+
+  const takeCallsign = () => {
+    if (!roast) return;
+    void verifyAndAccept(roast.callsign, true).then((r) => {
+      // Somebody already flies as this one: hand over a fresh callsign.
+      if (r === "taken") setRoast({ ...roast, stage: "denied", callsign: funnyCallsign(roast.callsign), tries: roast.tries + 1 });
+    });
+  };
+
+  /** Save the name and start that pilot's flight. */
+  const accept = (name: string) => {
     try {
       window.localStorage.setItem(PILOT_KEY, name);
     } catch {}
@@ -209,7 +363,7 @@ export function FlySim() {
       const p = readProgress(name);
       setLevel(p.level);
       setCarry(p.carry);
-      simInput.reset += 1;
+      resetSim();
       setGate(0);
       setSent("idle");
     }
@@ -458,57 +612,6 @@ export function FlySim() {
             <Stat label="Time" value={fmt(hud.time)} accent={hud.flash} note={hud.flash ? `+${HIT_PENALTY}s` : undefined} />
             <Stat label="Height" value={`${hud.alt.toFixed(1)} m`} className="max-sm:hidden" />
             <Stat label="Hits" value={String(hud.hits)} accent={hud.flash} />
-
-            {/* Live leaderboard: top 5 pilots, and where your current total would land */}
-            {board.length > 0 && (
-              <div className="pointer-events-auto col-span-full hidden border-t border-line pt-2.5 sm:block">
-                <div className="flex items-baseline justify-between gap-3">
-                  <button
-                    type="button"
-                    onClick={toggleBoard}
-                    aria-expanded={boardOpen}
-                    className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] text-dim transition-colors hover:text-ink"
-                  >
-                    <ChevronDown className={cn("size-3 transition-transform duration-300", !boardOpen && "-rotate-90")} strokeWidth={2} />
-                    Leaderboard
-                    <span className="normal-case tracking-normal text-dim">· {boardOpen ? "hide" : "show"}</span>
-                  </button>
-                  {liveRank !== null && (
-                    <span className="text-[10px] text-dim">
-                      You <span className={liveRank <= board.length ? "text-accent" : "text-ink"}>#{liveRank}</span>
-                      {!boardOpen && top && (
-                        <span className="text-dim">
-                          {" "}
-                          · top {pts(top.score)}
-                        </span>
-                      )}
-                    </span>
-                  )}
-                </div>
-                <ol className={cn("mt-1.5 space-y-1 normal-case tracking-normal", !boardOpen && "hidden")}>
-                  {board.slice(0, 5).map((r, i) => {
-                    const me = isMe(r);
-                    return (
-                      <li
-                        key={r.id}
-                        className={cn(
-                          "flex items-center gap-3 rounded-md px-1.5 py-0.5 text-[12px] tabular-nums",
-                          me ? "bg-accent/10 text-ink" : "text-muted",
-                        )}
-                      >
-                        <span className="w-4 text-dim">{i + 1}</span>
-                        <span className="min-w-0 flex-1 truncate">
-                          {display(r.pilot)}
-                          {me && <span className="ml-1.5 text-[9px] uppercase tracking-[0.14em] text-accent">you</span>}
-                        </span>
-                        <span className="text-dim">L{r.level}</span>
-                        <span className="w-14 text-right text-ink">{pts(r.score)}</span>
-                      </li>
-                    );
-                  })}
-                </ol>
-              </div>
-            )}
           </dl>
         </div>
 
@@ -566,6 +669,19 @@ export function FlySim() {
           </Pad>
         </div>
       </div>
+
+      {/* Live leaderboard: top 5 pilots and where your current total would land. Draggable. */}
+      {board.length > 0 && (
+        <LeaderboardCard
+          board={board}
+          open={boardOpen}
+          onToggle={toggleBoard}
+          liveRank={liveRank}
+          isMe={isMe}
+          display={display}
+          pts={pts}
+        />
+      )}
 
       {/* Instructions: auto-opens briefly on start, otherwise from the HUD button or "?" */}
       {help && !askPilot && (
@@ -647,11 +763,136 @@ export function FlySim() {
       {/* Pilot prompt: before the first flight, and when changing the name */}
       {askPilot && (
         <Overlay>
+          {roast ? (
+            <div className="text-left" role="alertdialog" aria-live="polite">
+              <p className="eyebrow">
+                {roast.stage === "monu" ? "🌳 Family tree full" : roast.stage === "ask" ? "✋ Hold on a second" : roast.stage === "checking" ? "⏳ Please hold" : "⚖️ Verdict"}
+              </p>
+
+              {roast.stage === "monu" && (
+                <>
+                  <h2 className="mt-3 font-display text-2xl font-medium sm:text-3xl tracking-tight text-ink">
+                    Beta, that seat is taken. 💺
+                  </h2>
+                  <p className="mt-2 text-sm text-muted">
+                    &ldquo;<span className="break-all text-ink">{roast.name}</span>&rdquo; isn&apos;t allowed. Monu has no
+                    papa on this leaderboard, only fans. 🙏 Try one of these instead:
+                  </p>
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    {MONU_FAN_NAMES.map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => void verifyAndAccept(n, true)}
+                        className="w-full rounded-full border border-line-strong px-4 py-2.5 text-sm text-ink transition-colors hover:border-ink hover:bg-surface sm:w-auto"
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRoast(null)}
+                    className="mt-3 w-full px-2 py-2 text-center text-sm text-muted sm:mt-4 sm:w-auto underline-offset-4 transition-colors hover:text-ink hover:underline"
+                  >
+                    I&apos;ll type my own
+                  </button>
+                </>
+              )}
+
+              {roast.stage === "ask" && (
+                <>
+                  <h2 className="mt-3 font-display text-2xl font-medium sm:text-3xl tracking-tight text-ink">
+                    Are you <em>sure</em> about that name? 🤨
+                  </h2>
+                  <p className="mt-2 text-sm text-muted">
+                    You typed <span className="break-all text-ink">&ldquo;{roast.name}&rdquo;</span>. Our pigeons are nervous. 🐦😰
+                  </p>
+                  <div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+                    <button
+                      type="button"
+                      onClick={sureClicked}
+                      className="w-full rounded-full bg-ink px-5 py-2.5 sm:w-auto text-sm font-medium text-bg transition-colors hover:bg-accent"
+                    >
+                      Yes, 100% sure 😤
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRoast(null)}
+                      className="w-full rounded-full border border-line-strong px-5 py-2.5 sm:w-auto text-sm text-ink transition-colors hover:border-ink"
+                    >
+                      Hmm, let me retype 🙈
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {roast.stage === "checking" && (
+                <>
+                  <h2 className="mt-3 font-display text-2xl font-medium sm:text-3xl tracking-tight text-ink">Checking… 🔍</h2>
+                  <p className="mt-2 text-sm text-muted">{roast.line}</p>
+                  <motion.span
+                    aria-hidden
+                    initial={{ scaleX: 0 }}
+                    animate={{ scaleX: 1 }}
+                    transition={{ duration: 2.8, ease: "linear" }}
+                    className="mt-5 block h-px origin-left bg-ink/60"
+                  />
+                </>
+              )}
+
+              {roast.stage === "denied" && (
+                <>
+                  <h2 className="mt-3 font-display text-2xl font-medium sm:text-3xl tracking-tight text-ink">{roast.verdict}</h2>
+                  <p className="mt-2 text-sm text-muted">
+                    So ATC picked a callsign for you. {roast.tries >= 3 ? "Picky, aren't we? 🧐" : "Wear it with pride. 😎"}
+                  </p>
+                  <div className="mt-5 flex items-center gap-3 sm:gap-4">
+                    <Dice face={dice.face} rolling={dice.rolling} />
+                    <motion.p
+                      key={dice.rolling ? "rolling" : roast.callsign}
+                      initial={dice.rolling ? false : { opacity: 0, scale: 0.9, y: 8 }}
+                      animate={{ opacity: dice.rolling ? 0.5 : 1, scale: 1, y: 0 }}
+                      transition={{ type: "spring", stiffness: 380, damping: 16 }}
+                      className="min-w-0 flex-1 rounded-2xl border border-line-strong px-3 py-2.5 font-display text-xl leading-tight text-ink sm:px-4 sm:py-3 sm:text-2xl"
+                    >
+                      <span className="block break-words">{dice.rolling ? dice.name : roast.callsign}</span>
+                    </motion.p>
+                  </div>
+                  <div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+                    <button
+                      type="button"
+                      onClick={takeCallsign}
+                      disabled={dice.rolling}
+                      className="w-full rounded-full bg-ink px-5 py-2.5 sm:w-auto text-sm font-medium text-bg transition-colors hover:bg-accent"
+                    >
+                      Fine, I&apos;ll fly as this 🫡
+                    </button>
+                    <button
+                      type="button"
+                      onClick={rerollCallsign}
+                      disabled={dice.rolling}
+                      className="w-full rounded-full border border-line-strong px-5 py-2.5 sm:w-auto text-sm text-ink transition-colors hover:border-ink disabled:opacity-60"
+                    >
+                      {dice.rolling ? "Rolling… 🎲" : "Roll again 🎲"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRoast(null)}
+                      className="w-full px-2 py-2 text-center text-sm text-muted sm:w-auto underline-offset-4 transition-colors hover:text-ink hover:underline"
+                    >
+                      I&apos;ll type my own
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
           <form onSubmit={confirmPilot} className="text-left">
             <p className="eyebrow">Before take-off</p>
-            <h2 className="mt-3 font-display text-3xl font-medium tracking-tight text-ink">Who&apos;s flying?</h2>
+            <h2 className="mt-3 font-display text-3xl font-medium tracking-tight text-ink">Who&apos;s flying? 🚁</h2>
             <p className="mt-2 text-sm text-muted">
-              Your name or email goes on the leaderboard with your score, and your progress through the levels is kept under it.
+              Your name or email will be shown publicly on the leaderboard with your score, and your progress through the levels is kept under it.
               Emails are shortened when shown.
             </p>
             <label className="mt-5 block">
@@ -673,9 +914,10 @@ export function FlySim() {
             <div className="mt-5 flex items-center gap-3">
               <button
                 type="submit"
-                className="rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-bg transition-colors hover:bg-accent"
+                disabled={checking}
+                className="rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-bg transition-colors hover:bg-accent disabled:opacity-60"
               >
-                {editing && pilot ? "Save" : "Start flying"}
+                {checking ? "Checking…" : editing && pilot ? "Save" : "Start flying 🚁"}
               </button>
               {editing && pilot && (
                 <button
@@ -693,6 +935,7 @@ export function FlySim() {
               </p>
             )}
           </form>
+          )}
         </Overlay>
       )}
 
@@ -787,8 +1030,8 @@ function Key({ keys, label }: { keys: string[]; label: string }) {
 
 function Overlay({ children }: { children: ReactNode }) {
   return (
-    <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-5">
-      <div className="pointer-events-auto max-h-[88svh] w-full max-w-sm overflow-y-auto rounded-3xl border border-line bg-bg/92 p-7 text-center shadow-[0_30px_80px_-30px_rgba(18,18,18,0.35)] backdrop-blur-md">
+    <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-3 sm:px-5">
+      <div className="pointer-events-auto max-h-[88svh] w-full max-w-sm overflow-y-auto rounded-3xl border border-line bg-bg/92 p-5 text-center sm:p-7 shadow-[0_30px_80px_-30px_rgba(18,18,18,0.35)] backdrop-blur-md">
         {children}
       </div>
     </div>

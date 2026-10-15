@@ -81,6 +81,10 @@ export async function sendContactMessage({ name, email, message, meta }: Contact
   });
 }
 
+/** Every email to a person opens with this, since it is sent from the Buddy (Brevo) account. */
+export const BUDDY_INTRO = "Hey, it's Buddy, Monu's personal assistant.";
+const buddyHtml = `<p style="margin:0 0 14px;font-size:14px;color:#555">${BUDDY_INTRO.replace(/'/g, "&#39;")}</p>`;
+
 /** Sends the admin one-time sign-in code. */
 export async function sendOtpEmail(to: string, code: string) {
   const env = readEnv();
@@ -88,9 +92,10 @@ export async function sendOtpEmail(to: string, code: string) {
     from: env.from,
     to,
     subject: `${code} is your portfolio admin code`,
-    text: `Your one-time sign-in code is ${code}. It expires in 10 minutes. If you did not request it, ignore this email.`,
+    text: `${BUDDY_INTRO}\n\nYour one-time sign-in code is ${code}. It expires in 10 minutes. If you did not request it, ignore this email.`,
     html: `
       <div style="font-family:Inter,Arial,sans-serif;max-width:480px;color:#111">
+        ${buddyHtml}
         <p style="margin:0 0 8px;font-size:13px;color:#777">Portfolio admin</p>
         <p style="margin:0 0 16px;font-size:16px">Your one-time sign-in code:</p>
         <p style="margin:0 0 16px;font:600 36px/1 ui-monospace,Menlo,monospace;letter-spacing:8px">${code}</p>

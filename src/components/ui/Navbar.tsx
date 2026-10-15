@@ -164,7 +164,8 @@ export function Navbar() {
             <Link href={hrefFor("#home")} onClick={(e) => go(e, "#home")} aria-label={`${site.name} — home`} className="-m-2 p-2 text-ink">
               <Mark />
             </Link>
-            <ul className="hidden items-center gap-1 md:flex">
+            {/* In the game, the header is just the logo and "Let's talk": no section links. */}
+            <ul className={cn("hidden items-center gap-1", !onFly && "md:flex")}>
               {links.map((item) => {
                 const isActive = active === item.href.slice(1);
                 return (
@@ -229,13 +230,14 @@ export function Navbar() {
                 {nav.find((n) => n.href.slice(1) === active)?.label ?? ""}
               </motion.span>
             </AnimatePresence>
-            <FlyLink active={onFly} onClick={() => setOpen(false)} />
+            {!onFly && <FlyLink active={onFly} onClick={() => setOpen(false)} />}
             <Link
               href={hrefFor("#contact")}
               onClick={(e) => go(e, "#contact")}
               aria-current={active === "contact" ? "location" : undefined}
               className={cn(
-                "group hidden items-center gap-1 rounded-full px-3.5 py-1.5 text-sm transition-colors duration-300 md:inline-flex",
+                "group items-center gap-1 rounded-full px-3.5 py-1.5 text-sm transition-colors duration-300",
+                onFly ? "inline-flex" : "hidden md:inline-flex",
                 active === "contact" ? "bg-ink text-bg" : "text-ink underline decoration-ink/40 underline-offset-[5px] hover:decoration-ink",
               )}
             >
@@ -247,7 +249,7 @@ export function Navbar() {
               onClick={() => setOpen((v) => !v)}
               aria-expanded={open}
               aria-controls="mobile-menu"
-              className="-my-3 -mr-3 px-3 py-3 text-sm text-ink underline underline-offset-[5px] md:hidden"
+              className={cn("-my-3 -mr-3 px-3 py-3 text-sm text-ink underline underline-offset-[5px] md:hidden", onFly && "hidden")}
             >
               {open ? "Close" : "Menu"}
             </button>

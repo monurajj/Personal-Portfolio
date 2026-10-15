@@ -1,5 +1,6 @@
 import { addDoc, collection, getDocs, limit, orderBy, query, serverTimestamp } from "firebase/firestore";
 import { firebaseConfigured, getDb } from "./firebase";
+import { containsProfanity, type WordFilterConfig } from "./profanity";
 
 /**
  * Drone-game leaderboard. Lives in the `scores` collection, which the
@@ -24,6 +25,8 @@ export type ScoreRecord = {
   hits: number;
   gates: number;
   createdAt: string | null;
+  /** Name trips the word filter: kept off the public board, shown to admins so they can rename it. */
+  hidden?: boolean;
 };
 
 const COLLECTION = "scores";
@@ -49,7 +52,10 @@ export async function saveScore(s: { pilot: string; time: number; hits: number; 
  * No `where` on `source`: the rules only ever admit source == "fly", and
  * combining it with this ordering would need a composite index.
  */
-export async function topScores(n = 20): Promise<ScoreRecord[]> {
+export async function topScores(
+  n = 20,
+  opts: { filter?: WordFilterConfig; includeHidden?: boolean } = {},
+): Promise<ScoreRecord[]> {
   if (!firebaseConfigured) return [];
   // A single orderBy keeps this index-free; ties are rare and fine in either order.
   const q = query(collection(getDb(), COLLECTION), orderBy("score", "desc"), limit(n * 6));
@@ -59,6 +65,9 @@ export async function topScores(n = 20): Promise<ScoreRecord[]> {
   for (const d of snap.docs) {
     const v = d.data();
     const pilot = String(v.pilot ?? "Pilot");
+    // Rows saved before the filter (or written around it) never reach the public board.
+    const hidden = containsProfanity(pilot, opts.filter);
+    if (hidden && !opts.includeHidden) continue;
     const key = pilot.toLowerCase(); // "Monu" and "monu" are the same pilot
     if (seen.has(key)) continue;
     seen.add(key);
@@ -71,6 +80,7 @@ export async function topScores(n = 20): Promise<ScoreRecord[]> {
       hits: Number(v.hits ?? 0),
       gates: Number(v.gates ?? 0),
       createdAt: v.createdAt?.toDate?.()?.toISOString() ?? null,
+      ...(hidden ? { hidden: true } : {}),
     });
     if (out.length >= n) break;
   }
