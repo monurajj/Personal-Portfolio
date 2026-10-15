@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Images, Inbox, LayoutDashboard, Shield, Trophy } from "lucide-react";
+import { Images, Inbox, LayoutDashboard, Shield, ShieldAlert, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
@@ -10,6 +10,7 @@ const items = [
   { href: "/admin/messages", label: "Messages", Icon: Inbox },
   { href: "/admin/media", label: "Media", Icon: Images },
   { href: "/admin/scores", label: "Scores", Icon: Trophy },
+  { href: "/admin/words", label: "Word filter", Icon: ShieldAlert },
   { href: "/admin/admins", label: "Admins", Icon: Shield },
 ];
 

@@ -41,6 +41,11 @@ service cloud.firestore {
         && request.resource.data.pilot is string
         && request.resource.data.pilot.size() >= 1
         && request.resource.data.pilot.size() <= 64
+        // Last line of defence for writes that skip the site. The full filter (leetspeak,
+        // spacing, allowlisted names) lives in src/lib/profanity.ts; this blocks the plain
+        // forms only, and never a name the site itself would accept.
+        && !request.resource.data.pilot.lower().matches('.*(fuck|bitch|pussy|porn|whore|slut|nigg|dildo|sexy|lauda|lavda|chutiy|chutia|bhosd|bhench|behench|madarch|betich|chudai|gaandu).*')
+        && !request.resource.data.pilot.lower().matches('(.*[^a-z])?(sex|ass|dick|cock|cunt|shit|lund|chut|gand|gandu|randi|bsdk)([^a-z].*)?')
         && request.resource.data.time is number
         && request.resource.data.time > 0
         && request.resource.data.time < 3600
